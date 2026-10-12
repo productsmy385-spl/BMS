@@ -1,0 +1,553 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  BAKERY_ADMIN
+  POS_STAFF
+  KITCHEN_STAFF
+  ORDER_MANAGER
+  DELIVERY_STAFF
+}
+
+enum OrderStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum OrderSource {
+  POS
+  PUBLIC_WEBSITE
+  WHATSAPP
+}
+
+enum DeliveryType {
+  PICKUP
+  DELIVERY
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  STORE_CREDIT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  PARTIALLY_PAID
+  FAILED
+  REFUNDED
+}
+
+enum KOTStatus {
+  NEW
+  ACCEPTED
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementReason {
+  ORDER_SALE
+  MANUAL_CORRECTION
+  PURCHASE_RESTOCK
+  EXPIRED
+  SPOILED
+  RETURN
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  DELIVERY_FAILED
+}
+
+enum NotificationType {
+  ORDER_CONFIRMATION
+  ORDER_READY
+  ORDER_OUT_FOR_DELIVERY
+  MENU_INQUIRY_RESPONSE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTED
+  FAILED
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile             BakeryProfile?
+  websiteSettings     WebsiteSettings?
+  memberships         TenantMembership[]
+  categories          ProductCategory[]
+  products            Product[]
+  customers           Customer[]
+  orders              Order[]
+  payments            Payment[]
+  kotTickets          KOTTicket[]
+  inventoryItems      InventoryItem[]
+  stockMovements      StockMovement[]
+  notifications       Notification[]
+  integrationConfig   IntegrationConfig?
+  auditLogs           AuditLog[]
+  printJobs           PrintJob[]
+  deliveryAssignments DeliveryAssignment[]
+
+  @@map("tenants")
+}
+
+model BakeryProfile {
+  id            String   @id @default(cuid())
+  tenantId      String   @unique @map("tenant_id")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tagline       String?
+  phone         String?
+  email         String?
+  address       String?
+  city          String?  @default("Hyderabad")
+  state         String?  @default("Telangana")
+  pincode       String?
+  gstNumber     String?  @map("gst_number")
+  fssaiNumber   String?  @map("fssai_number")
+  currency      String   @default("INR")
+  timezone      String   @default("Asia/Kolkata")
+  openingTime   String?  @default("09:00") @map("opening_time")
+  closingTime   String?  @default("22:00") @map("closing_time")
+  allowPickup   Boolean  @default(true) @map("allow_pickup")
+  allowDelivery Boolean  @default(true) @map("allow_delivery")
+  logoUrl       String?  @map("logo_url")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("bakery_profiles")
+}
+
+model WebsiteSettings {
+  id                    String   @id @default(cuid())
+  tenantId              String   @unique @map("tenant_id")
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  primaryColor          String   @default("#e11d48") @map("primary_color")
+  secondaryColor        String   @default("#f43f5e") @map("secondary_color")
+  backgroundColor       String   @default("#fefefe") @map("background_color")
+  cardBackgroundColor   String   @default("#ffffff") @map("card_background_color")
+  headerBackgroundColor String   @default("#ffffff") @map("header_background_color")
+  navBackgroundColor    String   @default("#ffffff") @map("nav_background_color")
+  buttonBackgroundColor String   @default("#e11d48") @map("button_background_color")
+  buttonTextColor       String   @default("#ffffff") @map("button_text_color")
+  headingColor          String   @default("#0f172a") @map("heading_color")
+  bodyTextColor         String   @default("#334155") @map("body_text_color")
+  entireTextColor       String?  @default("#334155") @map("entire_text_color")
+  linkColor             String   @default("#e11d48") @map("link_color")
+  fontFamily            String   @default("Inter") @map("font_family")
+  heroTitle             String?  @default("Freshly Baked Delights Everyday") @map("hero_title")
+  heroSubtitle          String?  @default("Artisanal breads, custom cakes, and delicious pastries made with love.") @map("hero_subtitle")
+  heroImageUrl          String?  @map("hero_image_url")
+  aboutText             String?  @map("about_text")
+  announcementBar       String?  @map("announcement_bar")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("website_settings")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String?  @map("password_hash")
+  isSuperAdmin Boolean  @default(false) @map("is_super_admin")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memberships TenantMembership[]
+  auditLogs   AuditLog[]
+
+  @@map("users")
+}
+
+model TenantMembership {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @default(BAKERY_ADMIN)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId])
+  @@map("tenant_memberships")
+}
+
+model ProductCategory {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String
+  description  String?
+  displayOrder Int      @default(0) @map("display_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  products Product[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, isActive])
+  @@map("product_categories")
+}
+
+model Product {
+  id                     String          @id @default(cuid())
+  tenantId               String          @map("tenant_id")
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId             String          @map("category_id")
+  category               ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  name                   String
+  slug                   String
+  description            String?
+  basePrice              Decimal         @map("base_price") @db.Decimal(10, 2)
+  taxRate                Decimal         @default(5.0) @map("tax_rate") @db.Decimal(5, 2)
+  isVeg                  Boolean         @default(true) @map("is_veg")
+  isCustomCake           Boolean         @default(false) @map("is_custom_cake")
+  trackInventory         Boolean         @default(true) @map("track_inventory")
+  isInStock              Boolean         @default(true) @map("is_in_stock")
+  preparationTimeMinutes Int             @default(20) @map("preparation_time_minutes")
+  imagekitUrl            String?         @map("imagekit_url")
+  imagekitFileId         String?         @map("imagekit_file_id")
+  createdAt              DateTime        @default(now()) @map("created_at")
+  updatedAt              DateTime        @updatedAt @map("updated_at")
+
+  variants       ProductVariant[]
+  customizations ProductCustomization[]
+  inventoryItem  InventoryItem?
+  orderItems     OrderItem[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, categoryId, isInStock])
+  @@map("products")
+}
+
+model ProductVariant {
+  id         String  @id @default(cuid())
+  productId  String  @map("product_id")
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name       String // e.g. "0.5 kg", "1 kg", "Pack of 6"
+  priceDelta Decimal @default(0.0) @map("price_delta") @db.Decimal(10, 2)
+  sku        String?
+  isDefault  Boolean @default(false) @map("is_default")
+
+  @@map("product_variants")
+}
+
+model ProductCustomization {
+  id              String  @id @default(cuid())
+  productId       String  @map("product_id")
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  groupName       String  @map("group_name") // "Flavour", "Sponge", "Cream", "Shape"
+  optionName      String  @map("option_name") // "Belgian Chocolate", "Red Velvet"
+  additionalPrice Decimal @default(0.0) @map("additional_price") @db.Decimal(10, 2)
+
+  @@map("product_customizations")
+}
+
+model Customer {
+  id        String            @id @default(cuid())
+  tenantId  String            @map("tenant_id")
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  email     String?
+  notes     String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  addresses CustomerAddress[]
+
+  @@unique([tenantId, phone])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id          String   @id @default(cuid())
+  customerId  String   @map("customer_id")
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  addressLine String   @map("address_line")
+  city        String?  @default("Hyderabad")
+  pincode     String?
+  landmark    String?
+
+  @@map("customer_addresses")
+}
+
+model Order {
+  id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderNumber        Int           @map("order_number")
+  source             OrderSource   @default(POS)
+  status             OrderStatus   @default(NEW)
+  deliveryType       DeliveryType  @default(PICKUP) @map("delivery_type")
+  scheduledFor       DateTime?     @map("scheduled_for")
+  customerName       String        @map("customer_name")
+  customerPhone      String        @map("customer_phone")
+  customerAddress    String?       @map("customer_address")
+  subtotalAmount     Decimal       @map("subtotal_amount") @db.Decimal(10, 2)
+  discountAmount     Decimal       @default(0.0) @map("discount_amount") @db.Decimal(10, 2)
+  taxAmount          Decimal       @default(0.0) @map("tax_amount") @db.Decimal(10, 2)
+  totalAmount        Decimal       @map("total_amount") @db.Decimal(10, 2)
+  paidAmount         Decimal       @default(0.0) @map("paid_amount") @db.Decimal(10, 2)
+  balanceAmount      Decimal       @default(0.0) @map("balance_amount") @db.Decimal(10, 2)
+  paymentStatus      PaymentStatus @default(PENDING) @map("payment_status")
+  specialNotes       String?       @map("special_notes")
+  cancellationReason String?       @map("cancellation_reason")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  items              OrderItem[]
+  payments           Payment[]
+  kotTickets         KOTTicket[]
+  notifications      Notification[]
+  deliveryAssignment DeliveryAssignment?
+  printJobs          PrintJob[]
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String   @id @default(cuid())
+  orderId             String   @map("order_id")
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId           String?  @map("product_id")
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  itemName            String   @map("item_name")
+  unitPrice           Decimal  @map("unit_price") @db.Decimal(10, 2)
+  quantity            Int
+  totalPrice          Decimal  @map("total_price") @db.Decimal(10, 2)
+  specialInstructions String?  @map("special_instructions")
+
+  customizations OrderItemCustomization[]
+
+  @@map("order_items")
+}
+
+model OrderItemCustomization {
+  id                String    @id @default(cuid())
+  orderItemId       String    @map("order_item_id")
+  orderItem         OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  flavour           String?
+  sponge            String?
+  cream             String?
+  shape             String?
+  tiers             Int?      @default(1)
+  messageOnCake     String?   @map("message_on_cake")
+  referencePhotoUrl String?   @map("reference_photo_url")
+
+  @@map("order_item_customizations")
+}
+
+model Payment {
+  id                   String        @id @default(cuid())
+  tenantId             String        @map("tenant_id")
+  tenant               Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId              String        @map("order_id")
+  order                Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount               Decimal       @db.Decimal(10, 2)
+  method               PaymentMethod @default(CASH)
+  status               PaymentStatus @default(COMPLETED)
+  transactionReference String?       @map("transaction_reference")
+  notes                String?
+  recordedById         String?       @map("recorded_by_id")
+  createdAt            DateTime      @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+  @@map("payments")
+}
+
+model KOTTicket {
+  id              String    @id @default(cuid())
+  tenantId        String    @map("tenant_id")
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId         String    @map("order_id")
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticketNumber    Int       @map("ticket_number")
+  status          KOTStatus @default(NEW)
+  isCustomCake    Boolean   @default(false) @map("is_custom_cake")
+  announcedCount  Int       @default(0) @map("announced_count")
+  lastAnnouncedAt DateTime? @map("last_announced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  items KOTTicketItem[]
+
+  @@unique([tenantId, ticketNumber])
+  @@index([tenantId, status])
+  @@map("kot_tickets")
+}
+
+model KOTTicketItem {
+  id                  String    @id @default(cuid())
+  ticketId            String    @map("ticket_id")
+  ticket              KOTTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  itemName            String    @map("item_name")
+  quantity            Int
+  specialInstructions String?   @map("special_instructions")
+
+  @@map("kot_ticket_items")
+}
+
+model InventoryItem {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productId         String?  @unique @map("product_id")
+  product           Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name              String
+  sku               String?
+  currentStock      Decimal  @default(0.0) @map("current_stock") @db.Decimal(10, 2)
+  unit              String   @default("PCS")
+  lowStockThreshold Decimal  @default(5.0) @map("low_stock_threshold") @db.Decimal(10, 2)
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  movements StockMovement[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, currentStock])
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id              String              @id @default(cuid())
+  tenantId        String              @map("tenant_id")
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventoryItemId String              @map("inventory_item_id")
+  inventoryItem   InventoryItem       @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  quantityChange  Decimal             @map("quantity_change") @db.Decimal(10, 2)
+  balanceAfter    Decimal             @map("balance_after") @db.Decimal(10, 2)
+  reason          StockMovementReason
+  notes           String?
+  createdById     String?             @map("created_by_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  @@index([tenantId, inventoryItemId, createdAt])
+  @@map("stock_movements")
+}
+
+model DeliveryAssignment {
+  id               String         @id @default(cuid())
+  tenantId         String         @map("tenant_id")
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId          String         @unique @map("order_id")
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignedDriverId String?        @map("assigned_driver_id")
+  driverName       String?        @map("driver_name")
+  driverPhone      String?        @map("driver_phone")
+  status           DeliveryStatus @default(ASSIGNED)
+  assignedAt       DateTime       @default(now()) @map("assigned_at")
+  pickedUpAt       DateTime?      @map("picked_up_at")
+  deliveredAt      DateTime?      @map("delivered_at")
+  deliveryNotes    String?        @map("delivery_notes")
+
+  @@map("delivery_assignments")
+}
+
+model Notification {
+  id             String             @id @default(cuid())
+  tenantId       String             @map("tenant_id")
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId        String?            @map("order_id")
+  order          Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  recipientPhone String             @map("recipient_phone")
+  type           NotificationType
+  status         NotificationStatus @default(PENDING)
+  payload        Json?
+  retryCount     Int                @default(0) @map("retry_count")
+  errorLog       String?            @map("error_log")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  @@index([tenantId, status])
+  @@map("notifications")
+}
+
+model IntegrationConfig {
+  id                        String   @id @default(cuid())
+  tenantId                  String   @unique @map("tenant_id")
+  tenant                    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  interaktApiKey            String?  @map("interakt_api_key")
+  interaktTemplateNamespace String?  @map("interakt_template_namespace")
+  imagekitPublicKey         String?  @map("imagekit_public_key")
+  imagekitPrivateKey        String?  @map("imagekit_private_key")
+  imagekitUrlEndpoint       String?  @map("imagekit_url_endpoint")
+  escPosPrinterIp           String?  @map("esc_pos_printer_ip")
+  escPosPrinterWidth        Int      @default(80) @map("esc_pos_printer_width")
+  updatedAt                 DateTime @updatedAt @map("updated_at")
+
+  @@map("integration_configs")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?  @map("tenant_id")
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+model PrintJob {
+  id         String         @id @default(cuid())
+  tenantId   String         @map("tenant_id")
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderId    String?        @map("order_id")
+  order      Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  type       String         @default("RECEIPT") // RECEIPT, KOT
+  format     String         @default("80MM") // 80MM, 58MM
+  rawContent String         @map("raw_content")
+  status     PrintJobStatus @default(PENDING)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([tenantId, status])
+  @@map("print_jobs")
+}

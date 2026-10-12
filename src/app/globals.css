@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bms-primary: #e11d48;
+    --bms-secondary: #f43f5e;
+    --bms-bg: #fffbfb;
+    --bms-card-bg: #ffffff;
+    --bms-header-bg: #ffffff;
+    --bms-nav-bg: #ffffff;
+    --bms-btn-bg: #e11d48;
+    --bms-btn-text: #ffffff;
+    --bms-heading: #1e293b;
+    --bms-text: #334155;
+    --bms-link: #e11d48;
+  }
+
+  body {
+    background-color: var(--bms-bg);
+    color: var(--bms-text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Print Specific Rules for Thermal Receipts */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-receipt, #printable-receipt * {
+    visibility: visible;
+  }
+  #printable-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: monospace;
+    font-size: 12px;
+  }
+}
