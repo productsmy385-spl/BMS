@@ -36,8 +36,24 @@ export default function KitchenKOTDisplayPage() {
           setLastAnnouncedId(newTicket.id);
         }
       }
+
+      // Poll persisted Voice KOT queue for remote cashier shares
+      const voiceRes = await fetch(`/api/v1/tenants/${slug}/voice/queue`);
+      const voiceData = await voiceRes.json();
+      if (voiceData.success && Array.isArray(voiceData.data)) {
+        const pendingItem = voiceData.data.find((v: any) => !v.announced);
+        if (pendingItem && pendingItem.id !== lastAnnouncedId) {
+          playVoiceAnnouncement(pendingItem.speechText, (pendingItem.language as VoiceLanguage) || currentLang);
+          setLastAnnouncedId(pendingItem.id);
+          await fetch(`/api/v1/tenants/${slug}/voice/queue`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ queueItemId: pendingItem.id }),
+          });
+        }
+      }
     } catch (err) {
-      console.error('Failed to poll kitchen tickets:', err);
+      console.error('Failed to poll kitchen tickets & voice queue:', err);
     } finally {
       setLoading(false);
     }

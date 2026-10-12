@@ -10,13 +10,13 @@
 | **5. Menu** | Bakery Catalog & Custom Cakes | Categories, Products, Variants, Made-to-order custom cake studio, Daily menu | **VERIFIED** |
 | **6. Orders** | Dual-Channel Order Engine | Authoritative pricing engine, Online checkout, Counter POS, Shared order model | **VERIFIED** |
 | **7. Kitchen** | KOT & Voice Announcer | KOT pipeline (`NEW` -> `READY`), Socket.IO updates, Bilingual Voice (EN + TE) | **VERIFIED** |
-| **8. Delivery** | Delivery-Agent Dashboard | Dedicated driver portal (`/delivery/[tenantSlug]`), order assignments, pickup & delivery status actions | **IN PROGRESS** |
-| **9. Notifications** | Interakt WhatsApp Outbox | Durable outbox, Chef READY triggers delivery & WhatsApp, Driver PICKED_UP triggers WhatsApp, Retries | **IN PROGRESS** |
-| **10. Staff** | Staff & Custom Role Management | Tenant staff directory, Invite staff, Custom roles, Granular permission toggle matrix | **IN PROGRESS** |
-| **11. Data Management** | Data Import/Export & Reports | CSV/JSON export for orders/sales/inventory, Catalog import with error checking, Sales reports | **IN PROGRESS** |
+| **8. Delivery** | Delivery-Agent Dashboard | Dedicated driver portal (`/delivery/[tenantSlug]`), order assignments, pickup & delivery status actions | **VERIFIED** |
+| **9. Notifications** | Interakt WhatsApp Outbox | Durable outbox, Chef READY triggers delivery & WhatsApp, Driver PICKED_UP triggers WhatsApp, Retries | **VERIFIED** |
+| **10. Staff** | Staff & Custom Role Management | Tenant staff directory, Invite staff, Custom roles, Granular permission toggle matrix | **VERIFIED** |
+| **11. Data Management** | Data Import/Export & Reports | CSV/JSON export for orders/sales/inventory, Catalog import with error checking, Sales reports | **VERIFIED** |
 | **12. Inventory** | Stock Control & Adjustments | Real-time stock decrements, Low-stock alerts, Movement logs with required audit reasons | **VERIFIED** |
-| **13. Payments** | Payment Ledger & Dues | Split/multiple payment methods (Cash, UPI, Card), advance deposits, balance due tracking | **VERIFIED** |
+| **13. Payments** | Payment Ledger & Dues | Tenant UPI settings, manual UTR verification, duplicate reconciliation prevention, balance tracking | **VERIFIED** |
 | **14. Printing** | Thermal ESC/POS Architecture | 80mm & 58mm customer receipts and KOT slips, Print queue, Monospace thermal emulator | **VERIFIED** |
-| **15. Administration** | Dashboards & Configuration | Aggregated tenant dashboard metrics, Business profile, Integration settings (Interakt, ImageKit) | **IN PROGRESS** |
-| **16. Security** | Tenant-Isolation Test Suite | Automated integration tests for cross-tenant isolation, role permission enforcement, notification flows | **IN PROGRESS** |
-| **17. Deployment** | Railway Production Readiness | Production build validation, Prisma migration guides, Environment variable documentation | **READY** |
+| **15. Administration** | Dashboards & Configuration | Aggregated tenant dashboard metrics, Business profile, Integration settings (Interakt, ImageKit) | **VERIFIED** |
+| **16. Security** | Tenant-Isolation Test Suite | Automated integration tests for cross-tenant isolation, role permission enforcement, notification flows | **VERIFIED** |
+| **17. Deployment** | Railway Production Readiness | Production build validation, Prisma migration guides, Health check endpoint, Environment variable checklist | **VERIFIED** |

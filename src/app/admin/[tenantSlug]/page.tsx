@@ -22,7 +22,7 @@ import {
   RefreshCw,
   MessageSquare
 } from 'lucide-react';
-import { Navigation } from '@/components/Navigation';
+import { TenantConsoleNavigation } from '@/components/TenantConsoleNavigation';
 import { Order, InventoryItem, DeliveryAssignment, AuditLog } from '@/types';
 
 export default function TenantDashboardOverviewPage() {
@@ -49,9 +49,18 @@ export default function TenantDashboardOverviewPage() {
         delivRes.json(),
       ]);
 
-      if (ordersData.success) setOrders(ordersData.data);
-      if (invData.success) setInventory(invData.data);
-      if (delivData.success) setDeliveries(delivData.data);
+      if (ordersData.success && Array.isArray(ordersData.data)) {
+        setOrders(ordersData.data);
+      }
+      if (invData.success) {
+        const items = Array.isArray(invData.data)
+          ? invData.data
+          : (invData.data?.items || []);
+        setInventory(items);
+      }
+      if (delivData.success && Array.isArray(delivData.data)) {
+        setDeliveries(delivData.data);
+      }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -64,16 +73,20 @@ export default function TenantDashboardOverviewPage() {
   }, [slug]);
 
   // Aggregate metrics
-  const totalSales = orders.reduce((sum, o) => sum + (o.paymentStatus === 'COMPLETED' ? o.totalAmount : 0), 0);
-  const activeOrders = orders.filter((o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED');
-  const preparingOrders = orders.filter((o) => o.status === 'PREPARING');
-  const readyOrders = orders.filter((o) => o.status === 'READY_FOR_PICKUP');
-  const activeDeliveries = deliveries.filter((d) => d.status !== 'DELIVERED');
-  const lowStockItems = inventory.filter((i) => i.currentStock <= i.lowStockThreshold);
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeDeliveries = Array.isArray(deliveries) ? deliveries : [];
+  const safeInventory = Array.isArray(inventory) ? inventory : [];
+
+  const totalSales = safeOrders.reduce((sum, o) => sum + (o.paymentStatus === 'COMPLETED' ? o.totalAmount : 0), 0);
+  const activeOrders = safeOrders.filter((o) => o.status !== 'DELIVERED' && o.status !== 'CANCELLED');
+  const preparingOrders = safeOrders.filter((o) => o.status === 'PREPARING');
+  const readyOrders = safeOrders.filter((o) => o.status === 'READY_FOR_PICKUP');
+  const activeDeliveries = safeDeliveries.filter((d) => d.status !== 'DELIVERED');
+  const lowStockItems = safeInventory.filter((i) => i.currentStock <= i.lowStockThreshold);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
-      <Navigation currentSlug={slug} />
+      <TenantConsoleNavigation currentSlug={slug} />
 
       <main className="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-8">
         {/* Header */}

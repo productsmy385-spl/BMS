@@ -19,6 +19,13 @@ app.prepare().then(() => {
       console.error('Server error:', err);
     }
   });
-  httpServer.listen(port, hostname, () => console.log(`🚀 BMS server listening on http://${hostname}:${port}`));
+  httpServer.listen(port, hostname, () => {
+    console.log(`\n🚀 BMS server running:`);
+    console.log(`   ➜ Local:   http://localhost:${port}`);
+    console.log(`   ➜ Network: http://127.0.0.1:${port}\n`);
+  });
+}).catch((err) => {
+  console.error('❌ Failed to prepare server:', err);
+  process.exit(1);
 });
 

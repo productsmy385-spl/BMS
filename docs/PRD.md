@@ -4,19 +4,26 @@
 ---
 
 ## 1. Executive Summary
-**FlowDineOS** is a multi-tenant cloud SaaS platform built from scratch for bakery enterprises, artisanal patisseries, and custom cake studios. The platform owner is the **Super Admin** of FlowDineOS, with authority to provision and configure multiple independent bakery organizations.
+**FlowDineOS** is a multi-tenant cloud SaaS platform built from scratch for bakery enterprises, artisanal patisseries, and custom cake studios.
 
-Each organization receives its own dynamic public website (`/[tenantSlug]`), tenant console (`/admin/[tenantSlug]`), kitchen display (`/kitchen/[tenantSlug]`), delivery-agent dashboard (`/delivery/[tenantSlug]`), bilingual voice KOT system (English & Telugu), thermal print emulator, and WhatsApp notification engine powered by Interakt.
+The platform is architected around **three strictly separated application experiences**:
+1. **Experience A: Public FlowDineOS SaaS Website (`/`)**: High-converting marketing landing page, product feature breakdowns, bilingual voice KOT explanation, tiered pricing packages matrix, Terms & Conditions (`/terms`), Privacy Policy (`/privacy`), and a live Book a Demo portal (`/book-demo`). Completely public; no private tenant data or Super Admin links.
+2. **Experience B: Private Super Admin Panel (`/super-admin`)**: Secured platform owner console for provisioning organizations, assigning packages and feature entitlements, tracking platform metrics, updating demo request leads, and inspecting immutable audit logs.
+3. **Experience C: Tenant Applications**:
+   - **Dynamic Public Bakery Storefront (`/[tenantSlug]`)**: Dynamically branded customer portal with daily menu, custom cake studio, manual UPI payment with QR code, and **Staff Login** button. **STRICT RULE**: No Super Admin links or buttons appear on any tenant's public website.
+   - **Private Tenant Operations Console (`/admin/[tenantSlug]`)**: Full back-office suite including Orders with **"Share to Voice KOT"**, Kitchen KOT, Delivery Dashboard, Menu, Inventory, UPI Reconciliation & Manual Verification, Customers, Staff & Roles, Brand Kit, Reports, and Data Import/Export.
 
 *Explicitly Excluded*: IVR, phone call-routing, and automated voice calling.
 
 ---
 
 ## 2. Architecture & Ownership Paradigm
-- **Super Admin Platform Owner**: Directly provisions bakery organizations with custom branding, website presets, operational hours, and creates/invites the initial bakery admin.
+- **Three Strictly Separated Experiences**: The SaaS marketing presence, platform super admin, and tenant-scoped operational consoles maintain distinct route namespaces, navigation systems, and access controls.
+- **Super Admin Platform Owner**: Directly provisions bakery organizations with custom branding, package assignments (`Starter`, `Growth`, `Enterprise`), website presets, and initial admin accounts.
 - **Tenant Isolation**: Bakery A and Bakery B data are strictly isolated. No cross-tenant data leakage is permitted via URL tampering, API parameters, or database queries.
-- **Dynamic Shared Website Engine**: A single high-performance Next.js rendering engine drives every bakery's public storefront dynamically from PostgreSQL records and WebsiteSettings.
-- **Authoritative Database**: PostgreSQL is the single source of truth. WhatsApp notifications, real-time events, and printer jobs are asynchronous side effects that never compromise database transactions.
+- **Manual UPI Payment Reconciliation**: Direct customer-to-merchant UPI flow. The customer scans the bakery's QR code or uses the UPI ID, inputs their 12-digit UTR reference, and the order is marked `PENDING_VERIFICATION` until verified by cashier staff.
+- **Voice KOT Announcements (Not Auto-Printing)**: Incoming orders and manual cashier selections are queued for bilingual voice announcements (English and Telugu) in the kitchen.
+- **Authoritative Database**: PostgreSQL/Prisma is the single source of truth. WhatsApp notifications, real-time events, and printer jobs are asynchronous side effects that never compromise database transactions.
 
 ---
 

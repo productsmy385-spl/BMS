@@ -20,10 +20,9 @@ import {
   X,
   AlertCircle
 } from 'lucide-react';
-import { Navigation } from '@/components/Navigation';
 import { CustomCakeModal } from '@/components/CustomCakeModal';
 import { ReceiptPrinter } from '@/components/ReceiptPrinter';
-import { Tenant, BakeryProfile, WebsiteSettings, ProductCategory, Product, Order } from '@/types';
+import { Tenant, BakeryProfile, WebsiteSettings, ProductCategory, Product, Order, TenantPaymentSettings } from '@/types';
 
 interface CartItem {
   productId: string;
@@ -66,6 +65,8 @@ export default function TenantPublicStorefrontPage() {
   const [deliveryType, setDeliveryType] = useState<'PICKUP' | 'DELIVERY'>('PICKUP');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [scheduledFor, setScheduledFor] = useState('');
+  const [customerUtr, setCustomerUtr] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState<TenantPaymentSettings | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -81,6 +82,13 @@ export default function TenantPublicStorefrontPage() {
           setTenant(settingsData.data.tenant);
           setProfile(settingsData.data.profile);
           setTheme(settingsData.data.websiteSettings);
+        }
+
+        // Load payment settings (UPI)
+        const payRes = await fetch(`/api/v1/tenants/${slug}/payments/settings`);
+        const payData = await payRes.json();
+        if (payData.success) {
+          setPaymentSettings(payData.data);
         }
 
         // Load catalog
@@ -144,6 +152,11 @@ export default function TenantPublicStorefrontPage() {
           customerAddress: deliveryType === 'DELIVERY' ? deliveryAddress : null,
           scheduledFor: scheduledFor || null,
           items: cart,
+          payment: {
+            amount: cartTotal,
+            method: 'UPI',
+            transactionReference: customerUtr.trim() || undefined,
+          },
         }),
       });
 
@@ -152,6 +165,7 @@ export default function TenantPublicStorefrontPage() {
         setPlacedOrder(data.data.order);
         setCart([]);
         setIsCartOpen(false);
+        setCustomerUtr('');
       } else {
         alert(data.error || 'Failed to place order.');
       }
@@ -213,7 +227,6 @@ export default function TenantPublicStorefrontPage() {
       className="min-h-screen flex flex-col font-sans transition-colors"
       style={{ backgroundColor: pageBg, color: bodyTextColor }}
     >
-      <Navigation currentSlug={slug} />
 
       {/* Announcement Bar */}
       {theme?.announcementBar && (
@@ -721,6 +734,56 @@ export default function TenantPublicStorefrontPage() {
                   />
                 </div>
 
+                {/* Direct Manual UPI Payment Instructions */}
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-amber-900">Direct Bakery UPI Payment</span>
+                    <span className="text-[10px] font-mono font-bold bg-amber-200/60 text-amber-900 px-2 py-0.5 rounded-full">
+                      Zero Surcharge
+                    </span>
+                  </div>
+
+                  {paymentSettings?.qrImageUrl && (
+                    <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-amber-200">
+                      <img
+                        src={paymentSettings.qrImageUrl}
+                        alt="UPI QR Scanner"
+                        className="w-20 h-20 rounded-lg object-contain bg-white border border-slate-200 shrink-0"
+                      />
+                      <div className="text-[11px] space-y-1">
+                        <p className="font-bold text-slate-800">{paymentSettings.accountDisplayName}</p>
+                        <p className="font-mono text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded font-bold inline-block">
+                          {paymentSettings.upiId}
+                        </p>
+                        <p className="text-[10px] text-slate-500">Scan via GPay, PhonePe, Paytm or BHIM</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentSettings?.instructions && (
+                    <p className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed">
+                      {paymentSettings.instructions}
+                    </p>
+                  )}
+
+                  <div className="space-y-1 pt-1 border-t border-amber-200/60">
+                    <label className="text-[11px] font-bold text-amber-950 block">
+                      Submitted UPI Transaction Reference (UTR) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 428912345678 (12-digit UTR)"
+                      value={customerUtr}
+                      onChange={(e) => setCustomerUtr(e.target.value)}
+                      className="w-full px-3 py-1.5 text-xs border border-amber-300 rounded-lg bg-white font-mono"
+                    />
+                    <p className="text-[10px] text-slate-500">
+                      Enter the 12-digit UTR from your UPI app so our cashier can verify and reconcile your payment.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Pricing Summary */}
                 <div className="pt-2 border-t border-slate-200 text-xs space-y-1">
                   <div className="flex justify-between text-slate-500">
@@ -743,7 +806,7 @@ export default function TenantPublicStorefrontPage() {
                   className="w-full py-2.5 rounded-xl font-bold text-xs text-white shadow-xs transition-transform active:scale-95 disabled:opacity-50"
                   style={{ backgroundColor: buttonBg }}
                 >
-                  {isSubmitting ? 'Placing Order...' : `Confirm Order (₹${cartTotal.toFixed(2)})`}
+                  {isSubmitting ? 'Placing Order...' : `Submit Order & UTR Reference (₹${cartTotal.toFixed(2)})`}
                 </button>
               </form>
             )}
@@ -762,24 +825,34 @@ export default function TenantPublicStorefrontPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Order Placed</span>
               <h3 className="text-2xl font-black text-slate-900 mt-1">Order #{placedOrder.orderNumber}</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Thank you, {placedOrder.customerName}! Your order has been dispatched directly to the kitchen display.
+                Thank you, {placedOrder.customerName}! Your order has been dispatched directly to the kitchen display and voice queue.
               </p>
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-xl text-left text-xs space-y-1 border border-slate-100">
+            <div className="p-3 bg-slate-50 rounded-xl text-left text-xs space-y-1.5 border border-slate-100">
               <div className="flex justify-between">
                 <span className="text-slate-500">Total Bill:</span>
                 <span className="font-bold">₹{placedOrder.totalAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Delivery Type:</span>
-                <span className="font-medium">{placedOrder.deliveryType}</span>
+                <span className="text-slate-500">Payment Status:</span>
+                <span className="font-bold text-amber-600">{placedOrder.paymentStatus}</span>
               </div>
+              {placedOrder.payments[0]?.transactionReference && (
+                <div className="flex justify-between font-mono">
+                  <span className="text-slate-500">Submitted UTR:</span>
+                  <span className="text-slate-800 font-semibold">{placedOrder.payments[0].transactionReference}</span>
+                </div>
+              )}
               <div className="flex justify-between">
-                <span className="text-slate-500">Status:</span>
-                <span className="font-bold text-amber-600">{placedOrder.status}</span>
+                <span className="text-slate-500">Kitchen KOT:</span>
+                <span className="font-semibold text-emerald-600">Queued in Bilingual Voice KOT</span>
               </div>
             </div>
+
+            <p className="text-[11px] text-slate-500 italic bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+              Note: Submitted UPI payments remain pending verification until reviewed and approved by bakery staff.
+            </p>
 
             <div className="flex flex-col gap-2 pt-2">
               <button

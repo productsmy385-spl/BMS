@@ -23,6 +23,13 @@ import {
   CustomRole,
   PrintJob,
   Role,
+  PackageDefinition,
+  FeatureKey,
+  DemoRequest,
+  DemoRequestStatus,
+  TenantPaymentSettings,
+  Customer,
+  VoiceQueueItem,
 } from '@/types';
 
 // In-Memory Multi-Tenant Store with Rich Seed Data & Isolated Boundaries
@@ -43,6 +50,17 @@ interface MultiTenantState {
   customRoles: CustomRole[];
   printJobs: PrintJob[];
   auditLogs: AuditLog[];
+  packages: PackageDefinition[];
+  demoRequests: DemoRequest[];
+  paymentSettings: TenantPaymentSettings[];
+  customers: Customer[];
+  voiceQueue: VoiceQueueItem[];
+}
+
+let _idSeq = 0;
+function uniqueId(prefix: string): string {
+  _idSeq = (_idSeq + 1) % 1000000;
+  return `${prefix}_${Date.now()}_${_idSeq}_${Math.random().toString(36).substring(2, 6)}`;
 }
 
 function initializeState(): MultiTenantState {
@@ -50,6 +68,7 @@ function initializeState(): MultiTenantState {
     id: 'tenant_sweet_delights',
     name: 'Sweet Delights Bakery',
     slug: 'sweet-delights',
+    packageId: 'pkg_enterprise',
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -59,6 +78,7 @@ function initializeState(): MultiTenantState {
     id: 'tenant_crumb_crust',
     name: 'Crumb & Crust Patisserie',
     slug: 'crumb-crust',
+    packageId: 'pkg_growth',
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -564,6 +584,144 @@ function initializeState(): MultiTenantState {
     },
   ];
 
+  const packages: PackageDefinition[] = [
+    {
+      id: 'pkg_starter',
+      name: 'Starter Bakery',
+      description: 'Ideal for single-outlet artisanal bakeries looking for dynamic storefront and counter touch POS.',
+      pricePerMonth: 1999,
+      features: ['dashboard', 'menu', 'orders', 'website', 'payments'],
+      maxOrdersPerMonth: 500,
+      isActive: true,
+    },
+    {
+      id: 'pkg_growth',
+      name: 'Growth & Multi-Role',
+      description: 'Complete operational suite with Bilingual Voice KOT, Driver Portal, Staff RBAC, and Brand Kit.',
+      pricePerMonth: 4999,
+      features: [
+        'dashboard',
+        'menu',
+        'orders',
+        'website',
+        'brandkit',
+        'voice_kot',
+        'delivery',
+        'customers',
+        'staff',
+        'payments',
+      ],
+      maxOrdersPerMonth: 2500,
+      isActive: true,
+    },
+    {
+      id: 'pkg_enterprise',
+      name: 'Enterprise SaaS Suite',
+      description: 'Everything included: Interakt WhatsApp Engine, Custom Roles, Advanced Reports, and Data Import/Export.',
+      pricePerMonth: 9999,
+      features: [
+        'dashboard',
+        'menu',
+        'orders',
+        'website',
+        'brandkit',
+        'voice_kot',
+        'delivery',
+        'customers',
+        'staff',
+        'reports',
+        'import_export',
+        'whatsapp',
+        'payments',
+      ],
+      isActive: true,
+    },
+  ];
+
+  const demoRequests: DemoRequest[] = [
+    {
+      id: 'demo_req_101',
+      name: 'Vikram Sethi',
+      businessName: 'The Flour Barn Patisserie',
+      email: 'vikram@flourbarn.com',
+      phone: '+91 98450 12345',
+      outletsCount: 3,
+      requirements: 'Looking to replace noisy kitchen printers with Bilingual Voice KOT and automated WhatsApp delivery updates.',
+      preferredContact: 'PHONE',
+      status: 'PENDING',
+      createdAt: new Date(Date.now() - 7200000).toISOString(),
+      updatedAt: new Date(Date.now() - 7200000).toISOString(),
+    },
+  ];
+
+  const paymentSettings: TenantPaymentSettings[] = [
+    {
+      id: 'pay_set_1',
+      tenantId: tenant1.id,
+      upiId: 'sweetdelights@okaxis',
+      accountDisplayName: 'Sweet Delights Bakery Pvt Ltd',
+      qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=sweetdelights@okaxis&pn=Sweet%20Delights%20Bakery&cu=INR',
+      instructions: '1. Scan the QR code or send payment to the UPI ID above via GPay, PhonePe, or Paytm.\n2. Note your 12-digit UTR / Transaction Reference Number.\n3. Paste the UTR below for staff confirmation.',
+      contactPhone: '+91 98765 43210',
+      acceptUpi: true,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'pay_set_2',
+      tenantId: tenant2.id,
+      upiId: 'crumbcrust@okhdfcbank',
+      accountDisplayName: 'Crumb and Crust Patisserie LLP',
+      qrImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=crumbcrust@okhdfcbank&pn=Crumb%20and%20Crust&cu=INR',
+      instructions: 'Complete UPI payment and enter the transaction UTR number. Your order is accepted immediately and verified by our cashier.',
+      contactPhone: '+91 91234 56789',
+      acceptUpi: true,
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+
+  const customers: Customer[] = [
+    {
+      id: 'cust_1',
+      tenantId: tenant1.id,
+      name: 'Rohan Sharma',
+      phone: '9876543210',
+      email: 'rohan@example.com',
+      totalOrdersCount: 4,
+      totalSpentAmount: 2450,
+      lastOrderAt: new Date(Date.now() - 86400000).toISOString(),
+      notes: 'Prefers eggless cakes. Regular customer.',
+      createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+    },
+    {
+      id: 'cust_2',
+      tenantId: tenant1.id,
+      name: 'Ananya Roy',
+      phone: '9876599999',
+      email: 'ananya@example.com',
+      totalOrdersCount: 2,
+      totalSpentAmount: 1100,
+      lastOrderAt: new Date().toISOString(),
+      createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+    },
+  ];
+
+  const voiceQueue: VoiceQueueItem[] = [
+    {
+      id: 'voice_init_1',
+      tenantId: tenant1.id,
+      orderId: sampleOrder1.id,
+      ticketNumber: sampleKOT1.ticketNumber,
+      orderNumber: sampleOrder1.orderNumber,
+      customerName: sampleOrder1.customerName,
+      items: sampleOrder1.items.map((i) => ({ itemName: i.itemName, quantity: i.quantity, specialInstructions: i.specialInstructions })),
+      language: 'en',
+      announcementText: `New order number ${sampleOrder1.orderNumber}. 2 Sourdough Boule.`,
+      announced: true,
+      source: 'AUTO_ORDER',
+      createdAt: sampleOrder1.createdAt,
+    },
+  ];
+
   return {
     tenants: [tenant1, tenant2],
     profiles: [profile1, profile2],
@@ -581,6 +739,11 @@ function initializeState(): MultiTenantState {
     customRoles,
     printJobs: [],
     auditLogs: [],
+    packages,
+    demoRequests,
+    paymentSettings,
+    customers,
+    voiceQueue,
   };
 }
 
@@ -821,7 +984,7 @@ export const BMSStore = {
 
     let subtotalAmount = 0;
     let taxAmount = 0;
-    const orderId = `ord_${Date.now()}`;
+    const orderId = uniqueId('ord');
 
     const orderItems: OrderItem[] = orderData.items.map((i, idx) => {
       const lineTotal = i.unitPrice * i.quantity;
@@ -830,7 +993,7 @@ export const BMSStore = {
       taxAmount += lineTotal * (taxRate / 100);
 
       return {
-        id: `item_${Date.now()}_${idx}`,
+        id: uniqueId(`item_${idx}`),
         orderId,
         productId: i.productId,
         variantId: i.variantId,
@@ -875,18 +1038,24 @@ export const BMSStore = {
     };
 
     if (orderData.payment && orderData.payment.amount > 0) {
+      const isManualUpi = orderData.payment.method === 'UPI' && Boolean(orderData.payment.transactionReference);
+      const initialPaymentStatus: PaymentStatus = isManualUpi ? 'PENDING_VERIFICATION' : 'COMPLETED';
       const paymentRecord: Payment = {
-        id: `pay_${Date.now()}`,
+        id: uniqueId('pay'),
         tenantId,
         orderId,
         amount: orderData.payment.amount,
         method: orderData.payment.method,
-        status: 'COMPLETED',
+        status: initialPaymentStatus,
         transactionReference: orderData.payment.transactionReference,
+        notes: isManualUpi ? `Submitted UTR: ${orderData.payment.transactionReference} (Awaiting Cashier Verification)` : undefined,
         createdAt: new Date().toISOString(),
       };
       newOrder.payments.push(paymentRecord);
       store.payments.push(paymentRecord);
+      if (isManualUpi) {
+        newOrder.paymentStatus = 'PENDING_VERIFICATION';
+      }
     }
 
     store.orders.push(newOrder);
@@ -898,7 +1067,7 @@ export const BMSStore = {
         if (inv) {
           inv.currentStock = Math.max(0, inv.currentStock - item.quantity);
           store.stockMovements.push({
-            id: `mov_${Date.now()}_${item.productId}`,
+            id: uniqueId(`mov_${item.productId}`),
             tenantId,
             inventoryItemId: inv.id,
             quantityChange: -item.quantity,
@@ -916,8 +1085,9 @@ export const BMSStore = {
     const nextTicketNumber = currentKots.length > 0 ? Math.max(...currentKots.map((k) => k.ticketNumber)) + 1 : 101;
     const hasCustomCake = orderItems.some((i) => i.customization || i.itemName.toLowerCase().includes('cake'));
 
+    const kotTicketId = uniqueId('kot');
     const kotTicket: KOTTicket = {
-      id: `kot_${Date.now()}`,
+      id: kotTicketId,
       tenantId,
       orderId,
       ticketNumber: nextTicketNumber,
@@ -928,8 +1098,8 @@ export const BMSStore = {
       customerName: orderData.customerName,
       orderNumber: nextOrderNumber,
       items: orderItems.map((i, idx) => ({
-        id: `kitem_${Date.now()}_${idx}`,
-        ticketId: `kot_${Date.now()}`,
+        id: uniqueId(`kitem_${idx}`),
+        ticketId: kotTicketId,
         itemName: i.itemName,
         quantity: i.quantity,
         specialInstructions: i.specialInstructions || (i.customization?.messageOnCake ? `Msg: "${i.customization.messageOnCake}"` : null),
@@ -937,11 +1107,53 @@ export const BMSStore = {
     };
     store.kotTickets.push(kotTicket);
 
+    // Auto-create Voice Announcement in Queue
+    const voiceItem: VoiceQueueItem = {
+      id: uniqueId('voice'),
+      tenantId,
+      orderId,
+      ticketNumber: nextTicketNumber,
+      orderNumber: nextOrderNumber,
+      customerName: orderData.customerName,
+      items: orderItems.map((i) => ({
+        itemName: i.itemName,
+        quantity: i.quantity,
+        specialInstructions: i.specialInstructions || null,
+      })),
+      language: 'en',
+      announcementText: `New order number ${nextOrderNumber}. ${orderItems.map((i) => `${i.quantity} ${i.itemName}`).join(', ')}.`,
+      announced: false,
+      source: 'AUTO_ORDER',
+      createdAt: new Date().toISOString(),
+    };
+    store.voiceQueue.push(voiceItem);
+    emitRealtime(tenantId, 'voice:queue:new', voiceItem);
+
+    // Track customer in tenant-scoped ledger
+    const existingCust = store.customers.find((c) => c.tenantId === tenantId && c.phone === orderData.customerPhone);
+    if (existingCust) {
+      existingCust.totalOrdersCount += 1;
+      existingCust.totalSpentAmount += totalAmount;
+      existingCust.lastOrderAt = new Date().toISOString();
+      if (!existingCust.name && orderData.customerName) existingCust.name = orderData.customerName;
+    } else {
+      store.customers.push({
+        id: uniqueId('cust'),
+        tenantId,
+        name: orderData.customerName,
+        phone: orderData.customerPhone,
+        totalOrdersCount: 1,
+        totalSpentAmount: totalAmount,
+        lastOrderAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+    }
+
     // If Delivery order, prepare initial delivery assignment
     if (orderData.deliveryType === 'DELIVERY') {
       const activeDriver = store.staff.find((s) => s.tenantId === tenantId && s.role === 'DELIVERY_STAFF' && s.isActive);
       const deliveryAssignment: DeliveryAssignment = {
-        id: `deliv_${Date.now()}`,
+        id: uniqueId('deliv'),
         tenantId,
         orderId,
         assignedDriverId: activeDriver?.id || null,
@@ -957,7 +1169,7 @@ export const BMSStore = {
 
     // Queue order confirmation WhatsApp
     const notif: Notification = {
-      id: `notif_${Date.now()}`,
+      id: uniqueId('notif'),
       tenantId,
       orderId,
       recipientPhone: orderData.customerPhone.replace(/[^0-9]/g, ''),
@@ -1318,6 +1530,223 @@ export const BMSStore = {
     return store.auditLogs
       .filter((a) => (tenantId ? a.tenantId === tenantId : true))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+
+  // Packages & Feature Entitlements
+  getPackages: () => store.packages,
+  getPackageById: (id: string) => store.packages.find((p) => p.id === id),
+  getTenantPackage: (tenantId: string) => {
+    const tenant = store.tenants.find((t) => t.id === tenantId);
+    if (!tenant?.packageId) return store.packages.find((p) => p.id === 'pkg_enterprise');
+    return store.packages.find((p) => p.id === tenant.packageId) || store.packages[0];
+  },
+  isFeatureEnabled: (tenantId: string, feature: FeatureKey): boolean => {
+    const tenant = store.tenants.find((t) => t.id === tenantId);
+    if (!tenant) return false;
+    const pkg = BMSStore.getTenantPackage(tenantId);
+    if (!pkg) return true;
+    return pkg.features.includes(feature);
+  },
+  updateTenantPackage: (tenantId: string, packageId: string) => {
+    const tenant = store.tenants.find((t) => t.id === tenantId);
+    if (tenant) {
+      tenant.packageId = packageId;
+      tenant.updatedAt = new Date().toISOString();
+      return tenant;
+    }
+    return null;
+  },
+
+  // Demo Requests
+  getDemoRequests: () => {
+    if (!store.demoRequests) store.demoRequests = [];
+    return [...store.demoRequests].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+  createDemoRequest: (data: {
+    name: string;
+    businessName: string;
+    email: string;
+    phone: string;
+    outletsCount?: number;
+    requirements?: string;
+    preferredContact?: 'EMAIL' | 'PHONE' | 'WHATSAPP';
+  }) => {
+    if (!store.demoRequests) store.demoRequests = [];
+    const newReq: DemoRequest = {
+      id: `demo_${Date.now()}`,
+      name: data.name,
+      businessName: data.businessName,
+      email: data.email,
+      phone: data.phone,
+      outletsCount: data.outletsCount || 1,
+      requirements: data.requirements,
+      preferredContact: data.preferredContact || 'PHONE',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    store.demoRequests.push(newReq);
+    return newReq;
+  },
+  updateDemoRequestStatus: (id: string, status: DemoRequestStatus, notes?: string) => {
+    if (!store.demoRequests) store.demoRequests = [];
+    const req = store.demoRequests.find((d) => d.id === id);
+    if (req) {
+      req.status = status;
+      if (notes !== undefined) req.notes = notes;
+      req.updatedAt = new Date().toISOString();
+      return req;
+    }
+    return null;
+  },
+
+  // Payment Settings & Manual UPI Verification
+  getPaymentSettings: (tenantId: string): TenantPaymentSettings => {
+    if (!store.paymentSettings) store.paymentSettings = [];
+    let settings = store.paymentSettings.find((p) => p.tenantId === tenantId);
+    if (!settings) {
+      settings = {
+        id: `pay_set_${Date.now()}`,
+        tenantId,
+        upiId: 'bakery@upi',
+        accountDisplayName: 'Bakery Management',
+        instructions: 'Please pay via UPI and submit your 12-digit transaction UTR.',
+        acceptUpi: true,
+        updatedAt: new Date().toISOString(),
+      };
+      store.paymentSettings.push(settings);
+    }
+    return settings;
+  },
+  updatePaymentSettings: (tenantId: string, updates: Partial<TenantPaymentSettings>) => {
+    if (!store.paymentSettings) store.paymentSettings = [];
+    const existing = BMSStore.getPaymentSettings(tenantId);
+    Object.assign(existing, updates, { updatedAt: new Date().toISOString() });
+    return existing;
+  },
+  verifyPayment: (tenantId: string, paymentId: string, newStatus: 'COMPLETED' | 'FAILED', notes?: string) => {
+    if (!store.payments) store.payments = [];
+    const payment = store.payments.find((p) => p.tenantId === tenantId && p.id === paymentId);
+    if (!payment) return null;
+    if (payment.status !== 'PENDING_VERIFICATION') {
+      const order = store.orders.find((o) => o.tenantId === tenantId && o.id === payment.orderId);
+      return { payment, order, alreadyReconciled: true };
+    }
+    payment.status = newStatus;
+    if (notes) payment.notes = notes;
+    const order = store.orders.find((o) => o.tenantId === tenantId && o.id === payment.orderId);
+    if (order) {
+      if (newStatus === 'COMPLETED') {
+        order.paidAmount = order.totalAmount;
+        order.balanceAmount = 0;
+        order.paymentStatus = 'COMPLETED';
+      } else {
+        order.paymentStatus = 'FAILED';
+      }
+      order.updatedAt = new Date().toISOString();
+      emitRealtime(tenantId, 'order:updated', order);
+    }
+    return { payment, order, alreadyReconciled: false };
+  },
+
+  // Customers
+  getCustomers: (tenantId: string) => {
+    if (!store.customers) store.customers = [];
+    let list = store.customers.filter((c) => c.tenantId === tenantId);
+    if (list.length === 0) {
+      const seedCustomers: Customer[] = [
+        {
+          id: uniqueId('cust'),
+          tenantId,
+          name: 'Rohan Sharma',
+          phone: '9876543210',
+          email: 'rohan@example.com',
+          totalOrdersCount: 4,
+          totalSpentAmount: 2450,
+          lastOrderAt: new Date(Date.now() - 86400000).toISOString(),
+          notes: 'Prefers eggless cakes. Regular customer.',
+          createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+        },
+        {
+          id: uniqueId('cust'),
+          tenantId,
+          name: 'Ananya Roy',
+          phone: '9876599999',
+          email: 'ananya@example.com',
+          totalOrdersCount: 2,
+          totalSpentAmount: 1100,
+          lastOrderAt: new Date().toISOString(),
+          notes: 'Special anniversary order customer.',
+          createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+        },
+        {
+          id: uniqueId('cust'),
+          tenantId,
+          name: 'Vikram Mehta',
+          phone: '9811122334',
+          email: 'vikram.m@example.com',
+          totalOrdersCount: 6,
+          totalSpentAmount: 4800,
+          lastOrderAt: new Date().toISOString(),
+          notes: 'VIP customer. Prefers sourdough and morning croissants.',
+          createdAt: new Date(Date.now() - 86400000 * 45).toISOString(),
+        },
+      ];
+      store.customers.push(...seedCustomers);
+      list = seedCustomers;
+    }
+    return list;
+  },
+
+  // Voice Queue & "Share to Voice KOT"
+  getVoiceQueue: (tenantId: string) => {
+    if (!store.voiceQueue) store.voiceQueue = [];
+    return store.voiceQueue
+      .filter((v) => v.tenantId === tenantId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  },
+  shareOrdersToVoiceKOT: (tenantId: string, orderIds: string[], language: 'en' | 'te' = 'en') => {
+    const orders = store.orders.filter((o) => o.tenantId === tenantId && orderIds.includes(o.id));
+    const createdItems: VoiceQueueItem[] = [];
+
+    for (const ord of orders) {
+      const kot = store.kotTickets.find((k) => k.tenantId === tenantId && k.orderId === ord.id);
+      const text = language === 'te'
+        ? `Kotta order vachindi. Order number ${ord.orderNumber}. Items: ${ord.items.map((i) => `${i.quantity} ${i.itemName}`).join(', ')}.`
+        : `Kitchen Attention. Order number ${ord.orderNumber}. Prepare: ${ord.items.map((i) => `${i.quantity} ${i.itemName}`).join(', ')}.`;
+
+      const item: VoiceQueueItem = {
+        id: uniqueId(`voice_${ord.id}`),
+        tenantId,
+        orderId: ord.id,
+        ticketNumber: kot?.ticketNumber || 999,
+        orderNumber: ord.orderNumber,
+        customerName: ord.customerName,
+        items: ord.items.map((i) => ({
+          itemName: i.itemName,
+          quantity: i.quantity,
+          specialInstructions: i.specialInstructions || null,
+        })),
+        language,
+        announcementText: text,
+        announced: false,
+        source: 'MANUAL_SHARE',
+        createdAt: new Date().toISOString(),
+      };
+      store.voiceQueue.push(item);
+      createdItems.push(item);
+      emitRealtime(tenantId, 'voice:queue:new', item);
+    }
+    return { queuedCount: createdItems.length, items: createdItems };
+  },
+  markVoiceAnnounced: (arg1: string, arg2?: string) => {
+    const queueItemId = arg2 || arg1;
+    const item = store.voiceQueue.find((v) => v.id === queueItemId);
+    if (item) {
+      item.announced = true;
+      return item;
+    }
+    return null;
   },
 };
 

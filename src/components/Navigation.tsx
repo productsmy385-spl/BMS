@@ -23,14 +23,24 @@ interface NavigationProps {
   currentSlug?: string;
 }
 
+interface NavLink {
+  label: string;
+  href: string;
+  icon: any;
+  highlight?: boolean;
+}
+
 export function Navigation({ currentSlug = 'sweet-delights' }: NavigationProps) {
   const pathname = usePathname();
 
-  const mainNavLinks = [
+  const mainNavLinks: NavLink[] = [
     { label: 'Storefront', href: `/${currentSlug}`, icon: Store },
-    { label: 'POS', href: `/pos/${currentSlug}`, icon: Monitor },
+    { label: 'Orders', href: `/admin/${currentSlug}/orders`, icon: LayoutDashboard },
+    { label: 'Menu', href: `/admin/${currentSlug}/menu`, icon: Store },
     { label: 'Kitchen KOT', href: `/kitchen/${currentSlug}`, icon: UtensilsCrossed },
     { label: 'Delivery', href: `/delivery/${currentSlug}`, icon: Truck },
+    { label: 'Payments', href: `/admin/${currentSlug}/payments`, icon: LayoutDashboard },
+    { label: 'Customers', href: `/admin/${currentSlug}/customers`, icon: Users },
     { label: 'Tenant Console', href: `/admin/${currentSlug}`, icon: LayoutDashboard },
     { label: 'Staff', href: `/admin/${currentSlug}/staff`, icon: Users },
     { label: 'Roles', href: `/admin/${currentSlug}/roles`, icon: ShieldCheck },
@@ -39,7 +49,6 @@ export function Navigation({ currentSlug = 'sweet-delights' }: NavigationProps) 
     { label: 'Reports', href: `/admin/${currentSlug}/reports`, icon: BarChart3 },
     { label: 'Outbox', href: `/admin/${currentSlug}/notifications`, icon: MessageSquare },
     { label: 'Data', href: `/admin/${currentSlug}/data`, icon: Database },
-    { label: 'Super Admin', href: `/super-admin`, icon: ShieldAlert, highlight: true },
   ];
 
   return (

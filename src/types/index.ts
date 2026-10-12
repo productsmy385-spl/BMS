@@ -10,6 +10,7 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
+  packageId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -122,6 +123,7 @@ export type PaymentMethod = 'CASH' | 'UPI' | 'CARD' | 'STORE_CREDIT';
 
 export type PaymentStatus =
   | 'PENDING'
+  | 'PENDING_VERIFICATION'
   | 'COMPLETED'
   | 'PARTIALLY_PAID'
   | 'FAILED'
@@ -344,5 +346,91 @@ export interface AuditLog {
   entityType: string;
   entityId?: string | null;
   details?: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export type FeatureKey =
+  | 'dashboard'
+  | 'menu'
+  | 'orders'
+  | 'website'
+  | 'brandkit'
+  | 'voice_kot'
+  | 'delivery'
+  | 'customers'
+  | 'staff'
+  | 'reports'
+  | 'import_export'
+  | 'whatsapp'
+  | 'payments';
+
+export interface PackageDefinition {
+  id: string;
+  name: string;
+  description: string;
+  pricePerMonth: number;
+  features: FeatureKey[];
+  maxOrdersPerMonth?: number;
+  isActive: boolean;
+}
+
+export type DemoRequestStatus = 'PENDING' | 'CONTACTED' | 'SCHEDULED' | 'RESOLVED';
+
+export interface DemoRequest {
+  id: string;
+  name: string;
+  businessName: string;
+  email: string;
+  phone: string;
+  outletsCount?: number;
+  requirements?: string;
+  preferredContact?: 'EMAIL' | 'PHONE' | 'WHATSAPP';
+  status: DemoRequestStatus;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenantPaymentSettings {
+  id: string;
+  tenantId: string;
+  upiId: string;
+  accountDisplayName: string;
+  qrImageUrl?: string;
+  instructions: string;
+  contactPhone?: string;
+  acceptUpi: boolean;
+  updatedAt: string;
+}
+
+export interface Customer {
+  id: string;
+  tenantId: string;
+  name: string;
+  phone: string;
+  email?: string | null;
+  totalOrdersCount: number;
+  totalSpentAmount: number;
+  lastOrderAt?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface VoiceQueueItem {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  ticketNumber: number;
+  orderNumber: number;
+  customerName?: string;
+  items: Array<{
+    itemName: string;
+    quantity: number;
+    specialInstructions?: string | null;
+  }>;
+  language: 'en' | 'te';
+  announcementText: string;
+  announced: boolean;
+  source: 'AUTO_ORDER' | 'MANUAL_SHARE';
   createdAt: string;
 }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  ShieldCheck,
+  ShieldAlert,
   Plus,
   Store,
   Check,
@@ -18,13 +18,25 @@ import {
   UtensilsCrossed,
   LayoutDashboard,
   Power,
-  X
+  X,
+  Package,
+  Calendar,
+  Clock,
+  Phone,
+  Mail,
+  Building2,
+  CheckCircle2,
+  Filter
 } from 'lucide-react';
-import { Navigation } from '@/components/Navigation';
-import { Tenant } from '@/types';
+import { SuperAdminNavigation } from '@/components/SuperAdminNavigation';
+import { Tenant, PackageDefinition, DemoRequest, AuditLog } from '@/types';
 
 export default function SuperAdminDashboardPage() {
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [packages, setPackages] = useState<PackageDefinition[]>([]);
+  const [demoRequests, setDemoRequests] = useState<DemoRequest[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -37,25 +49,39 @@ export default function SuperAdminDashboardPage() {
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('Hyderabad');
   const [primaryColor, setPrimaryColor] = useState('#e11d48');
+  const [selectedPackageId, setSelectedPackageId] = useState('pkg_growth');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchTenants = async () => {
+  // Demo status update state
+  const [updatingDemoId, setUpdatingDemoId] = useState<string | null>(null);
+
+  const fetchPlatformData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/v1/tenants');
-      const data = await res.json();
-      if (data.success) {
-        setTenants(data.data);
-      }
+      const [tenantsRes, packagesRes, demosRes] = await Promise.all([
+        fetch('/api/v1/tenants'),
+        fetch('/api/v1/packages'),
+        fetch('/api/v1/demo-requests'),
+      ]);
+
+      const [tenantsData, packagesData, demosData] = await Promise.all([
+        tenantsRes.json(),
+        packagesRes.json(),
+        demosRes.json(),
+      ]);
+
+      if (tenantsData.success) setTenants(tenantsData.data);
+      if (packagesData.success) setPackages(packagesData.data);
+      if (demosData.success) setDemoRequests(demosData.data);
     } catch (err) {
-      console.error('Failed to fetch tenants:', err);
+      console.error('Failed to fetch platform administration data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTenants();
+    fetchPlatformData();
   }, []);
 
   const handleNameChange = (val: string) => {
@@ -83,6 +109,7 @@ export default function SuperAdminDashboardPage() {
           address,
           city,
           primaryColor,
+          packageId: selectedPackageId,
         }),
       });
 
@@ -95,52 +122,111 @@ export default function SuperAdminDashboardPage() {
         setPhone('');
         setEmail('');
         setAddress('');
-        fetchTenants();
+        fetchPlatformData();
       } else {
         alert(data.error || 'Failed to provision organization.');
       }
     } catch {
-      alert('Error communicating with provisioning API.');
+      alert('Error connecting to backend server.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleToggleTenantStatus = async (tenantId: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch('/api/v1/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          isActive: !currentStatus,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchPlatformData();
+      }
+    } catch {
+      alert('Failed to update tenant status.');
+    }
+  };
+
+  const handleUpdateTenantPackage = async (tenantId: string, packageId: string) => {
+    try {
+      const res = await fetch(`/api/v1/tenants/${tenantId}/package`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchPlatformData();
+      } else {
+        alert(data.error || 'Failed to update package entitlement.');
+      }
+    } catch {
+      alert('Error updating package.');
+    }
+  };
+
+  const handleUpdateDemoStatus = async (demoId: string, status: string) => {
+    try {
+      setUpdatingDemoId(demoId);
+      const res = await fetch(`/api/v1/demo-requests/${demoId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchPlatformData();
+      }
+    } catch {
+      alert('Error updating demo status.');
+    } finally {
+      setUpdatingDemoId(null);
+    }
+  };
+
+  // Metrics
+  const totalOrgs = tenants.length;
+  const activeOrgs = tenants.filter((t) => t.isActive).length;
+  const inactiveOrgs = totalOrgs - activeOrgs;
+  const pendingDemos = demoRequests.filter((d) => d.status === 'PENDING').length;
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
-      <Navigation />
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
+      <SuperAdminNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="max-w-7xl mx-auto px-4 py-8 flex-1 w-full space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4 flex-wrap pb-6 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-md">
-              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+        {/* Header Bar */}
+        <div className="flex items-center justify-between gap-4 flex-wrap pb-4 border-b border-slate-800">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              <h1 className="text-2xl font-black text-white">FlowDineOS Platform Console</h1>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                  Platform Owner Portal
-                </span>
-                <span className="text-xs text-rose-600 font-bold">FlowDineOS</span>
-              </div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-                Super Admin Organization Engine
-              </h1>
-            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Multi-Tenant Cloud Operations &bull; Organization Provisioning &bull; Package Entitlements
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
-              onClick={fetchTenants}
-              className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-slate-900 shadow-xs"
-              title="Refresh"
+              type="button"
+              onClick={fetchPlatformData}
+              disabled={loading}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
             </button>
+
             <button
+              type="button"
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md transition-transform active:scale-95"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-xs text-white shadow-md flex items-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Provision New Bakery Organization</span>
@@ -148,296 +234,453 @@ export default function SuperAdminDashboardPage() {
           </div>
         </div>
 
-        {/* Global SaaS Platform Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Total Organizations
-              </span>
-              <span className="text-2xl font-black text-slate-900 mt-1 block">{tenants.length}</span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
-              <Store className="w-5 h-5" />
-            </div>
-          </div>
+        {/* Tab 1: OVERVIEW */}
+        {activeTab === 'overview' && (
+          <div className="space-y-8">
+            {/* Real Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+                  <span>Total Organizations</span>
+                  <Store className="w-4 h-4 text-rose-400" />
+                </div>
+                <div className="text-3xl font-black text-white">{totalOrgs}</div>
+                <div className="text-[11px] text-emerald-400 flex items-center gap-1">
+                  <span>{activeOrgs} active</span>
+                  {inactiveOrgs > 0 && <span className="text-slate-400">&bull; {inactiveOrgs} suspended</span>}
+                </div>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Active Tenants
-              </span>
-              <span className="text-2xl font-black text-emerald-600 mt-1 block">
-                {tenants.filter((t) => t.isActive).length}
-              </span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <Activity className="w-5 h-5" />
-            </div>
-          </div>
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+                  <span>Available SaaS Packages</span>
+                  <Package className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-3xl font-black text-amber-400">{packages.length}</div>
+                <p className="text-[11px] text-slate-400">Starter, Growth, Enterprise tiers</p>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Isolation Architecture
-              </span>
-              <span className="text-sm font-black text-slate-900 mt-1 block">Strict Tenant Scoping</span>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            </div>
-          </div>
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+                  <span>Pending Demo Requests</span>
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                </div>
+                <div className="text-3xl font-black text-blue-400">{pendingDemos}</div>
+                <p className="text-[11px] text-slate-400">{demoRequests.length} total inquiries logged</p>
+              </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Real-Time & Voice
-              </span>
-              <span className="text-sm font-black text-slate-900 mt-1 block">Socket.IO & EN/TE TTS</span>
+              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-xs font-semibold">
+                  <span>Data Isolation Scoping</span>
+                  <ShieldAlert className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-3xl font-black text-emerald-400">Strict</div>
+                <p className="text-[11px] text-slate-400">Database-enforced tenant boundaries</p>
+              </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-              <Activity className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
 
-        {/* Bakery Tenants Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-base text-slate-900">Provisioned Bakery Organizations</h2>
-              <p className="text-xs text-slate-500">
-                Each organization possesses independent catalog, orders, KOT, delivery dashboard, staff roster, and public website.
-              </p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">Organization Name</th>
-                  <th className="py-3 px-4">Storefront Route</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Created Date</th>
-                  <th className="py-3 px-4 text-right">Operational Portals</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {tenants.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-black">
-                        FD
-                      </span>
+            {/* Quick Overview of Tenants & Pending Demos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Provisioned Organizations Card */}
+              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <h3 className="font-bold text-sm text-white">Active Organizations ({activeOrgs})</h3>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('organizations')}
+                    className="text-xs font-bold text-rose-400 hover:text-rose-300"
+                  >
+                    View All &rarr;
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {tenants.map((t) => (
+                    <div key={t.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between">
                       <div>
-                        <div>{t.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{t.id}</div>
+                        <h4 className="text-xs font-bold text-white">{t.name}</h4>
+                        <span className="text-[11px] text-slate-400 font-mono">/{t.slug}</span>
                       </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-600">/{t.slug}</td>
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          t.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${t.isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                        {t.isActive ? 'Active' : 'Deactivated'}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {new Date(t.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/${t.slug}`}
-                          className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-[11px] font-semibold flex items-center gap-1 shadow-2xs"
-                          title="Open Dynamic Public Storefront"
+                          target="_blank"
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
                         >
-                          <ExternalLink className="w-3 h-3 text-slate-400" />
+                          <Store className="w-3 h-3 text-rose-400" />
                           <span>Storefront</span>
                         </Link>
                         <Link
                           href={`/admin/${t.slug}`}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-[11px] font-semibold flex items-center gap-1"
-                          title="Open Tenant Admin Console"
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1"
                         >
-                          <LayoutDashboard className="w-3 h-3 text-rose-400" />
                           <span>Console</span>
                         </Link>
-                        <Link
-                          href={`/pos/${t.slug}`}
-                          className="px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold"
-                          title="Open Counter POS"
-                        >
-                          POS
-                        </Link>
-                        <Link
-                          href={`/kitchen/${t.slug}`}
-                          className="px-2 py-1.5 rounded-lg bg-amber-500 text-slate-950 hover:bg-amber-400 text-[11px] font-bold"
-                          title="Open Kitchen View & Voice KOT"
-                        >
-                          KOT
-                        </Link>
-                        <Link
-                          href={`/delivery/${t.slug}`}
-                          className="px-2 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 text-[11px] font-bold"
-                          title="Open Delivery Dashboard"
-                        >
-                          Delivery
-                        </Link>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recent Demo Requests */}
+              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <h3 className="font-bold text-sm text-white">Recent Demo Inquiries ({demoRequests.length})</h3>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('demos')}
+                    className="text-xs font-bold text-rose-400 hover:text-rose-300"
+                  >
+                    Manage &rarr;
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {demoRequests.slice(0, 3).map((d) => (
+                    <div key={d.id} className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">{d.name} &bull; {d.businessName}</span>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          d.status === 'PENDING' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                          {d.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">{d.phone} &bull; {d.email}</p>
+                      {d.requirements && <p className="text-[11px] text-slate-300 italic line-clamp-1">&ldquo;{d.requirements}&rdquo;</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Tab 2: ORGANIZATIONS */}
+        {activeTab === 'organizations' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h2 className="text-lg font-bold text-white">All Provisioned Bakery Organizations ({tenants.length})</h2>
+              <button
+                type="button"
+                onClick={() => setIsCreateOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Provision Organization</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {tenants.map((t) => {
+                const pkg = packages.find((p) => p.id === (t.packageId || 'pkg_enterprise'));
+                return (
+                  <div
+                    key={t.id}
+                    className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-white">{t.name}</h3>
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                              t.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            }`}>
+                              {t.isActive ? 'Active' : 'Suspended'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 font-mono mt-0.5">Slug: /{t.slug} &bull; ID: {t.id}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleTenantStatus(t.id, t.isActive)}
+                          className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1 border transition-colors ${
+                            t.isActive
+                              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+                              : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                          }`}
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                          <span>{t.isActive ? 'Suspend' : 'Activate'}</span>
+                        </button>
+                      </div>
+
+                      {/* Package selector */}
+                      <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Assigned Package:</span>
+                        <select
+                          value={t.packageId || 'pkg_enterprise'}
+                          onChange={(e) => handleUpdateTenantPackage(t.id, e.target.value)}
+                          className="bg-slate-900 border border-slate-700 text-white text-xs rounded-lg px-2.5 py-1 focus:outline-hidden"
+                        >
+                          {packages.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name} (₹{p.pricePerMonth}/mo)</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {pkg && (
+                        <div className="text-[11px] text-slate-400 flex flex-wrap gap-1">
+                          {pkg.features.map((f) => (
+                            <span key={f} className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 font-mono">
+                              {f}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Operational Portal Links */}
+                    <div className="pt-4 border-t border-slate-800 flex items-center gap-2">
+                      <Link
+                        href={`/${t.slug}`}
+                        target="_blank"
+                        className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Store className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Public Storefront</span>
+                        <ExternalLink className="w-3 h-3 text-slate-400" />
+                      </Link>
+
+                      <Link
+                        href={`/admin/${t.slug}`}
+                        className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <LayoutDashboard className="w-3.5 h-3.5" />
+                        <span>Tenant Console</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: PACKAGES & ENTITLEMENTS */}
+        {activeTab === 'packages' && (
+          <div className="space-y-6">
+            <div className="pb-2 border-b border-slate-800">
+              <h2 className="text-lg font-bold text-white">SaaS Package Definitions &amp; Feature Entitlements</h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Protected features are verified on the server. If a tenant&apos;s package does not include a feature, direct API requests are rejected.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {packages.map((pkg) => (
+                <div key={pkg.id} className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-bold text-white">{pkg.name}</h3>
+                      <span className="text-xs font-mono font-bold text-rose-400">₹{pkg.pricePerMonth}/mo</span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">{pkg.description}</p>
+                    
+                    <div className="pt-3 border-t border-slate-800 space-y-2 text-xs">
+                      <span className="font-semibold text-slate-300">Enabled Features ({pkg.features.length}):</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pkg.features.map((f) => (
+                          <span key={f} className="px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-mono text-[11px]">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800 text-[11px] text-slate-400">
+                    Max Orders: <strong>{pkg.maxOrdersPerMonth ? `${pkg.maxOrdersPerMonth} / month` : 'Unlimited'}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: DEMO REQUESTS */}
+        {activeTab === 'demos' && (
+          <div className="space-y-6">
+            <div className="pb-2 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-white">Public Website Demo Inquiries ({demoRequests.length})</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Real prospective bakery leads submitted from the FlowDineOS marketing page.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {demoRequests.map((demo) => (
+                <div key={demo.id} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                  <div className="flex items-start justify-between flex-wrap gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-white">{demo.name}</h3>
+                        <span className="text-xs text-slate-400">&bull; {demo.businessName}</span>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                          demo.status === 'PENDING'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : demo.status === 'CONTACTED'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                            : demo.status === 'SCHEDULED'
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        }`}>
+                          {demo.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 flex items-center gap-3">
+                        <span>Phone: <strong className="text-slate-200">{demo.phone}</strong></span>
+                        <span>Email: <strong className="text-slate-200">{demo.email}</strong></span>
+                        <span>Outlets: <strong className="text-slate-200">{demo.outletsCount || 1}</strong></span>
+                        <span>Contact Via: <strong className="text-slate-200">{demo.preferredContact || 'PHONE'}</strong></span>
+                      </p>
+                    </div>
+
+                    {/* Status updater buttons */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateDemoStatus(demo.id, 'CONTACTED')}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
+                      >
+                        Contacted
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateDemoStatus(demo.id, 'SCHEDULED')}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200"
+                      >
+                        Scheduled
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateDemoStatus(demo.id, 'RESOLVED')}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white"
+                      >
+                        Resolve
+                      </button>
+                    </div>
+                  </div>
+
+                  {demo.requirements && (
+                    <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300">
+                      <span className="font-semibold text-slate-400">Notes / Requirements: </span>
+                      {demo.requirements}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: AUDIT LOGS */}
+        {activeTab === 'audit' && (
+          <div className="space-y-6">
+            <div className="pb-2 border-b border-slate-800">
+              <h2 className="text-lg font-bold text-white">Platform System Audit Logs</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Immutable record of organization creations, setting modifications, and demo inquiries.</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs text-slate-400">
+              Platform ledger is operational. All organization provisioning, package entitlement adjustments, and demo submissions generate durable audit entries.
+            </div>
+          </div>
+        )}
       </main>
 
-      {/* Provision New Bakery Organization Modal */}
+      {/* Modal: Provision New Organization */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-slate-900">Provision Bakery Organization</h3>
-                <p className="text-xs text-slate-500">
-                  Provisions PostgreSQL records, dynamic storefront route, brand kit, and admin account.
-                </p>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="font-bold text-base text-white">Provision New Bakery Tenant</h3>
               <button
+                type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateTenant} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Organization Name *</label>
+            <form onSubmit={handleCreateTenant} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Bakery Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Royal Saffron Patisserie"
+                  placeholder="e.g. Sourdough & Co."
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
                 />
               </div>
 
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Storefront URL Slug *</label>
-                <div className="flex items-center">
-                  <span className="px-3 py-2 bg-slate-100 border border-r-0 border-slate-300 rounded-l-xl text-slate-500 font-mono text-[11px]">
-                    /
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    placeholder="royal-saffron"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-r-xl font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Tagline</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Unique Slug (`/[slug]`) *</label>
                 <input
                   type="text"
-                  placeholder="Artisanal Breads, Patisserie & Custom Celebration Cakes"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  required
+                  placeholder="sourdough-co"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Official Phone</label>
-                  <input
-                    type="tel"
-                    placeholder="+91 98765 00000"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Official Email</label>
-                  <input
-                    type="email"
-                    placeholder="contact@royalsaffron.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Package Entitlement *</label>
+                <select
+                  value={selectedPackageId}
+                  onChange={(e) => setSelectedPackageId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
+                >
+                  {packages.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name} (₹{p.pricePerMonth}/mo)</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Business Address</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300">City</label>
                   <input
                     type="text"
-                    placeholder="Road No. 10, Banjara Hills"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">City</label>
-                  <input
-                    type="text"
-                    placeholder="Hyderabad"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Brand Theme Primary Colour</label>
-                <div className="flex items-center gap-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300">Brand Color</label>
                   <input
                     type="color"
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="w-8 h-8 rounded-lg cursor-pointer p-0.5 border border-slate-300 bg-white"
-                  />
-                  <input
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="flex-1 px-3 py-1.5 font-mono border border-slate-300 rounded-xl"
+                    className="w-full h-8 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer"
                   />
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold disabled:opacity-50 shadow-xs"
-                >
-                  {isSubmitting ? 'Provisioning...' : 'Provision Organization'}
-                </button>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-300">Contact Phone</label>
+                <input
+                  type="tel"
+                  placeholder="+91 98450 00000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
+                />
               </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-xs text-white shadow-md transition-transform active:scale-95 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Provisioning...' : 'Provision Organization'}
+              </button>
             </form>
           </div>
         </div>

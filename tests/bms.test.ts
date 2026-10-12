@@ -387,3 +387,168 @@ describe('Staff Directory & Custom Roles Management', () => {
     assert.ok(found !== undefined);
   });
 });
+
+describe('SaaS Packages & Feature Entitlements Enforcement', () => {
+  it('enforces feature entitlements based on tenant package assignment', () => {
+    const tenant = BMSStore.getTenantBySlug('sweet-delights')!;
+    // sweet-delights has pkg_enterprise
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'whatsapp'), true);
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'voice_kot'), true);
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'import_export'), true);
+
+    // Switch tenant to Starter package (only basic features)
+    BMSStore.updateTenantPackage(tenant.id, 'pkg_starter');
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'dashboard'), true);
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'menu'), true);
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'whatsapp'), false);
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'voice_kot'), false);
+
+    // Restore to Enterprise
+    BMSStore.updateTenantPackage(tenant.id, 'pkg_enterprise');
+    assert.equal(BMSStore.isFeatureEnabled(tenant.id, 'voice_kot'), true);
+  });
+});
+
+describe('Public Demo Requests Management & Lifecycle', () => {
+  it('creates and tracks prospective bakery demo requests', () => {
+    const newDemo = BMSStore.createDemoRequest({
+      name: 'Sunita Rao',
+      businessName: 'The Cake Room',
+      email: 'sunita@thecakeroom.in',
+      phone: '+91 99887 76655',
+      outletsCount: 2,
+      requirements: 'Need bilingual voice KOT for our busy bakers',
+      preferredContact: 'WHATSAPP',
+    });
+
+    assert.equal(newDemo.status, 'PENDING');
+    assert.equal(newDemo.businessName, 'The Cake Room');
+
+    // Update status to CONTACTED
+    const updated = BMSStore.updateDemoRequestStatus(newDemo.id, 'CONTACTED', 'Spoke on call. Scheduled demo.');
+    assert.equal(updated?.status, 'CONTACTED');
+    assert.equal(updated?.notes, 'Spoke on call. Scheduled demo.');
+
+    const allDemos = BMSStore.getDemoRequests();
+    assert.ok(allDemos.some((d) => d.id === newDemo.id));
+  });
+});
+
+describe('Tenant-Scoped UPI Settings & Manual Reconciliation', () => {
+  it('isolates UPI configurations and requires cashier verification for customer UTR', () => {
+    const tenant1 = BMSStore.getTenantBySlug('sweet-delights')!;
+    const tenant2 = BMSStore.getTenantBySlug('crumb-crust')!;
+
+    const paySet1 = BMSStore.getPaymentSettings(tenant1.id);
+    const paySet2 = BMSStore.getPaymentSettings(tenant2.id);
+
+    // Different UPI IDs per tenant
+    assert.notEqual(paySet1.upiId, paySet2.upiId);
+    assert.equal(paySet1.upiId, 'sweetdelights@okaxis');
+    assert.equal(paySet2.upiId, 'crumbcrust@okhdfcbank');
+
+    // Customer places order with UPI transaction reference
+    const orderResult = BMSStore.createOrder(tenant1.id, {
+      source: 'PUBLIC_WEBSITE',
+      deliveryType: 'PICKUP',
+      customerName: 'Kiran Kumar',
+      customerPhone: '9845012345',
+      items: [{ itemName: 'Butter Croissant', unitPrice: 120, quantity: 2 }],
+      payment: {
+        amount: 252,
+        method: 'UPI',
+        transactionReference: '428912345678',
+      },
+    });
+
+    // Payment is placed in PENDING_VERIFICATION (not falsely marked COMPLETED)
+    assert.equal(orderResult.order.paymentStatus, 'PENDING_VERIFICATION');
+    const payment = orderResult.order.payments[0];
+    assert.equal(payment.status, 'PENDING_VERIFICATION');
+    assert.equal(payment.transactionReference, '428912345678');
+
+    // Cashier verifies and approves the payment
+    const verified = BMSStore.verifyPayment(tenant1.id, payment.id, 'COMPLETED', 'Verified in HDFC bank ledger');
+    assert.ok(verified !== null);
+    assert.ok(verified?.order);
+    assert.equal(verified?.payment.status, 'COMPLETED');
+    assert.equal(verified?.order?.paymentStatus, 'COMPLETED');
+    assert.equal(verified?.order?.balanceAmount, 0);
+    assert.equal(verified?.alreadyReconciled, false);
+    // Fulfillment status must remain unmutated (ACCEPTED)
+    assert.equal(verified?.order?.status, 'ACCEPTED');
+
+    // Duplicate verification attempt must be blocked
+    const duplicate = BMSStore.verifyPayment(tenant1.id, payment.id, 'COMPLETED');
+    assert.ok(duplicate !== null);
+    assert.equal(duplicate?.alreadyReconciled, true);
+
+    // Another order with rejection workflow
+    const rejectOrder = BMSStore.createOrder(tenant1.id, {
+      source: 'PUBLIC_WEBSITE',
+      deliveryType: 'PICKUP',
+      customerName: 'Anil Rao',
+      customerPhone: '9845099999',
+      items: [{ itemName: 'Butter Croissant', unitPrice: 120, quantity: 1 }],
+      payment: { amount: 126, method: 'UPI', transactionReference: '000000000000' },
+    });
+    const rejPay = rejectOrder.order.payments[0];
+    const rejResult = BMSStore.verifyPayment(tenant1.id, rejPay.id, 'FAILED', 'UTR mismatch with bank statement');
+    assert.ok(rejResult !== null);
+    assert.equal(rejResult?.payment.status, 'FAILED');
+    assert.equal(rejResult?.order?.paymentStatus, 'FAILED');
+    assert.equal(rejResult?.order?.status, 'ACCEPTED'); // fulfillment status stays ACCEPTED
+  });
+});
+
+describe('Batch Order Voice KOT Sharing & Queue Reliability', () => {
+  it('allows staff to select orders and share to kitchen voice queue', () => {
+    const tenant = BMSStore.getTenantBySlug('sweet-delights')!;
+    const orders = BMSStore.getOrders(tenant.id);
+    assert.ok(orders.length >= 2);
+
+    const orderIds = [orders[0].id, orders[1].id];
+
+    // Share in English
+    const shareResultEn = BMSStore.shareOrdersToVoiceKOT(tenant.id, orderIds, 'en');
+    assert.equal(shareResultEn.queuedCount, 2);
+    assert.ok(shareResultEn.items[0].announcementText.includes('Order number'));
+
+    // Share in Telugu
+    const shareResultTe = BMSStore.shareOrdersToVoiceKOT(tenant.id, [orders[0].id], 'te');
+    assert.equal(shareResultTe.queuedCount, 1);
+    assert.ok(shareResultTe.items[0].announcementText.includes('Kotta order vachindi'));
+
+    const queue = BMSStore.getVoiceQueue(tenant.id);
+    assert.ok(queue.length >= 3);
+
+    // Marking item announced
+    const itemId = shareResultEn.items[0].id;
+    const marked = BMSStore.markVoiceAnnounced(tenant.id, itemId);
+    assert.ok(marked !== null);
+    assert.equal(marked?.announced, true);
+  });
+});
+
+describe('Customer Ledger & Order History Scoping', () => {
+  it('automatically updates customer order counts and spent totals on order creation', () => {
+    const tenant = BMSStore.getTenantBySlug('sweet-delights')!;
+    const phone = '9900011223';
+
+    BMSStore.createOrder(tenant.id, {
+      source: 'PUBLIC_WEBSITE',
+      deliveryType: 'PICKUP',
+      customerName: 'Gita Sen',
+      customerPhone: phone,
+      items: [{ itemName: 'Chocolate Mousse', unitPrice: 200, quantity: 1, taxRate: 5 }],
+    });
+
+    const customers = BMSStore.getCustomers(tenant.id);
+    const customer = customers.find((c) => c.phone === phone);
+    assert.ok(customer !== undefined);
+    assert.equal(customer?.name, 'Gita Sen');
+    assert.equal(customer?.totalOrdersCount, 1);
+    assert.equal(customer?.totalSpentAmount, 210);
+  });
+});
+
